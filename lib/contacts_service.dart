@@ -156,6 +156,10 @@ enum FormOperationErrorCode {
 
 class Contact {
   Contact({
+    this.selectedEmail,
+    this.selectedPhone,
+    this.selectedIsoCode,
+    this.selectedCountryCode,
     this.displayName,
     this.givenName,
     this.middleName,
@@ -174,18 +178,20 @@ class Contact {
     this.androidAccountName,
   });
 
-  String identifier, displayName, givenName, middleName, prefix, suffix, familyName, company, jobTitle;
+  String identifier, displayName, givenName, middleName, prefix, suffix, familyName, company, jobTitle,selectedEmail,selectedPhone,selectedIsoCode,selectedCountryCode;
   String androidAccountTypeRaw, androidAccountName;
   AndroidAccountType androidAccountType;
   Iterable<Item> emails = [];
+  List<String> emailsList = [];
   Iterable<Item> phones = [];
+  List<String> phonesList= [];
   Iterable<PostalAddress> postalAddresses = [];
   Uint8List avatar;
   DateTime birthday;
 
   String initials() {
     return ((this.givenName?.isNotEmpty == true ? this.givenName[0] : "") +
-            (this.familyName?.isNotEmpty == true ? this.familyName[0] : ""))
+        (this.familyName?.isNotEmpty == true ? this.familyName[0] : ""))
         .toUpperCase();
   }
 
@@ -258,31 +264,31 @@ class Contact {
 
   /// The [+] operator fills in this contact's empty fields with the fields from [other]
   operator +(Contact other) => Contact(
-      givenName: this.givenName ?? other.givenName,
-      middleName: this.middleName ?? other.middleName,
-      prefix: this.prefix ?? other.prefix,
-      suffix: this.suffix ?? other.suffix,
-      familyName: this.familyName ?? other.familyName,
-      company: this.company ?? other.company,
-      jobTitle: this.jobTitle ?? other.jobTitle,
-      androidAccountType: this.androidAccountType ?? other.androidAccountType,
-      androidAccountName: this.androidAccountName ?? other.androidAccountName,
-      emails: this.emails == null
-          ? other.emails
-          : this.emails.toSet().union(other.emails?.toSet() ?? Set()).toList(),
-      phones: this.phones == null
-          ? other.phones
-          : this.phones.toSet().union(other.phones?.toSet() ?? Set()).toList(),
-      postalAddresses: this.postalAddresses == null
-          ? other.postalAddresses
-          : this
-              .postalAddresses
-              .toSet()
-              .union(other.postalAddresses?.toSet() ?? Set())
-              .toList(),
-      avatar: this.avatar ?? other.avatar,
-      birthday: this.birthday ?? other.birthday,
-    );
+    givenName: this.givenName ?? other.givenName,
+    middleName: this.middleName ?? other.middleName,
+    prefix: this.prefix ?? other.prefix,
+    suffix: this.suffix ?? other.suffix,
+    familyName: this.familyName ?? other.familyName,
+    company: this.company ?? other.company,
+    jobTitle: this.jobTitle ?? other.jobTitle,
+    androidAccountType: this.androidAccountType ?? other.androidAccountType,
+    androidAccountName: this.androidAccountName ?? other.androidAccountName,
+    emails: this.emails == null
+        ? other.emails
+        : this.emails.toSet().union(other.emails?.toSet() ?? Set()).toList(),
+    phones: this.phones == null
+        ? other.phones
+        : this.phones.toSet().union(other.phones?.toSet() ?? Set()).toList(),
+    postalAddresses: this.postalAddresses == null
+        ? other.postalAddresses
+        : this
+        .postalAddresses
+        .toSet()
+        .union(other.postalAddresses?.toSet() ?? Set())
+        .toList(),
+    avatar: this.avatar ?? other.avatar,
+    birthday: this.birthday ?? other.birthday,
+  );
 
   /// Returns true if all items in this contact are identical.
   @override
@@ -345,11 +351,11 @@ class Contact {
 class PostalAddress {
   PostalAddress(
       {this.label,
-      this.street,
-      this.city,
-      this.postcode,
-      this.region,
-      this.country});
+        this.street,
+        this.city,
+        this.postcode,
+        this.region,
+        this.country});
   String label, street, city, postcode, region, country;
 
   PostalAddress.fromMap(Map m) {
@@ -385,13 +391,13 @@ class PostalAddress {
   }
 
   static Map _toMap(PostalAddress address) => {
-        "label": address.label,
-        "street": address.street,
-        "city": address.city,
-        "postcode": address.postcode,
-        "region": address.region,
-        "country": address.country
-      };
+    "label": address.label,
+    "street": address.street,
+    "city": address.city,
+    "postcode": address.postcode,
+    "region": address.region,
+    "country": address.country
+  };
 
   @override
   String toString() {
@@ -430,6 +436,8 @@ class PostalAddress {
     return finalString;
   }
 }
+
+
 
 /// Item class used for contact fields which only have a [label] and
 /// a [value], such as emails and phone numbers
