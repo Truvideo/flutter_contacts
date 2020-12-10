@@ -25,6 +25,12 @@ public class SwiftContactsServicePlugin: NSObject, FlutterPlugin, CNContactViewC
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
+        case "getContactsByGroup":
+            let arguments = call.arguments as! [String:Any]
+            result(getContactsByGroup(query: (arguments["groupIdentifier"] as? String),
+                                      localizedLabels: arguments["iOSLocalizedLabels"] as! Bool))
+        case "getGroups":
+            result(getGroups())
         case "getContacts":
             let arguments = call.arguments as! [String:Any]
             result(getContacts(query: (arguments["query"] as? String), withThumbnails: arguments["withThumbnails"] as! Bool,
@@ -97,7 +103,70 @@ public class SwiftContactsServicePlugin: NSObject, FlutterPlugin, CNContactViewC
             result(FlutterMethodNotImplemented)
         }
     }
+ func getGroups() -> [[String:Any]] {
+        let store = CNContactStore()
+        var groups : [CNGroup] = []
+        var result = [[String:Any]]()
+        do{
+             try groups = store.groups(matching:nil)
+         }
+        catch let error as NSError {
+            print(error.localizedDescription)
+            return result
+        }
 
+
+        for group : CNGroup in groups {
+            result.append(groupToDictionary(group: group))
+        }
+        return result
+    }
+
+    func getContactsByGroup(query : String?,localizedLabels: Bool) -> [[String:Any]]{
+     let store = CNContactStore()
+     var contacts : [CNContact] = []
+     var result = [[String:Any]]()
+     do {
+
+     if query != nil{
+          let predicate = CNContact.predicateForContactsInGroup(withIdentifier: query!)
+
+           //Create the store, keys & fetch request
+
+      var keys = [CNContactFormatter.descriptorForRequiredKeys(for: .fullName),
+                    CNContactEmailAddressesKey,
+                    CNContactPhoneNumbersKey,
+                    CNContactFamilyNameKey,
+                    CNContactGivenNameKey,
+                    CNContactMiddleNameKey,
+                    CNContactNamePrefixKey,
+                    CNContactNameSuffixKey,
+                    CNContactPostalAddressesKey,
+                    CNContactOrganizationNameKey,
+                    CNContactJobTitleKey,
+                    CNContactBirthdayKey,
+                    CNGroupNameKey,
+                    CNGroupIdentifierKey] as [Any]
+
+           contacts = try store.unifiedContacts(matching: predicate, keysToFetch: keys as! [CNKeyDescriptor])
+
+
+     }
+
+
+    }
+
+    catch let error as NSError {
+                print(error.localizedDescription)
+                return result
+            }
+     // Transform the CNContacts into dictionaries
+     for contact : CNContact in contacts{
+          result.append(contactToDictionary(contact: contact, localizedLabels: localizedLabels))
+     }
+
+     return result
+    }
     func getContacts(query : String?, withThumbnails: Bool, photoHighResolution: Bool, phoneQuery: Bool, emailQuery: Bool = false, orderByGivenName: Bool, localizedLabels: Bool) -> [[String:Any]]{
 
         var contacts : [CNContact] = []
@@ -613,4 +682,11 @@ public class SwiftContactsServicePlugin: NSObject, FlutterPlugin, CNContactViewC
         }
     }
 
+    func groupToDictionary(group: CNGroup) -> [String:Any]{
+
+        var result = [String:Any]()
+        result["identifier"] = group.identifier
+        result["name"] = group.name
+        return result
+    }
 }

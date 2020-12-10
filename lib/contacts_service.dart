@@ -29,7 +29,23 @@ class ContactsService {
     });
     return contacts.map((m) => Contact.fromMap(m));
   }
+  static Future<Iterable<Group>> getGroups() async {
+    Iterable groups =
+    await _channel.invokeMethod('getGroups', <String, dynamic>{
+    });
+    return groups.map((m) => Group.fromMap(m));
+  }
+  static Future<Iterable<Contact>> getContactsByGroup({String groupIdentifier,bool iOSLocalizedLabels = true}) async {
 
+    if (groupIdentifier == null || groupIdentifier.isEmpty) return Iterable.empty();
+
+    Iterable contacts =
+    await _channel.invokeMethod('getContactsByGroup', <String, dynamic>{
+      'groupIdentifier': groupIdentifier,
+      'iOSLocalizedLabels': iOSLocalizedLabels,
+    });
+    return contacts.map((m) => Contact.fromMap(m));
+  }
   /// Fetches all contacts, or when specified, the contacts with the phone
   /// matching [phone]
   static Future<Iterable<Contact>> getContactsForPhone(String phone,
@@ -153,7 +169,28 @@ enum FormOperationErrorCode {
   FORM_OPERATION_UNKNOWN_ERROR
 }
 
+class Group {
+  Group({this.name});
 
+  String identifier,
+      name;
+  Group.fromMap(Map m) {
+    identifier = m["identifier"];
+    name = m["name"];
+  }
+
+  Map toMap() {
+    return Group._toMap(this);
+  }
+
+  static Map _toMap(Group group) {
+    return {
+      'identifier': group.identifier,
+      'name': group.name
+    };
+  }
+
+}
 class Contact {
   Contact({
     this.selectedEmail,
