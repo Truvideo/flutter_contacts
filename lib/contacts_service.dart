@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
@@ -29,19 +30,35 @@ class ContactsService {
     });
     return contacts.map((m) => Contact.fromMap(m));
   }
-  static Future<Iterable<Group>> getGroups() async {
+  static Future<Iterable<Group>> getGroups( {String query,
+    bool withThumbnails = true,
+    bool photoHighResolution = true,
+    bool orderByGivenName = true,
+    bool iOSLocalizedLabels = true}) async {
     Iterable groups =
     await _channel.invokeMethod('getGroups', <String, dynamic>{
+      'query': query,
+      'withThumbnails': withThumbnails,
+      'photoHighResolution': photoHighResolution,
+      'orderByGivenName': orderByGivenName,
+      'iOSLocalizedLabels': iOSLocalizedLabels,
     });
     return groups.map((m) => Group.fromMap(m));
   }
-  static Future<Iterable<Contact>> getContactsByGroup({String groupIdentifier,bool iOSLocalizedLabels = true}) async {
+  static Future<Iterable<Contact>> getContactsByGroup({String groupIdentifier,
+    bool withThumbnails = true,
+    bool photoHighResolution = true,
+    bool orderByGivenName = true,
+    bool iOSLocalizedLabels = true}) async {
 
     if (groupIdentifier == null || groupIdentifier.isEmpty) return Iterable.empty();
 
     Iterable contacts =
     await _channel.invokeMethod('getContactsByGroup', <String, dynamic>{
       'groupIdentifier': groupIdentifier,
+      'withThumbnails': withThumbnails,
+      'photoHighResolution': photoHighResolution,
+      'orderByGivenName': orderByGivenName,
       'iOSLocalizedLabels': iOSLocalizedLabels,
     });
     return contacts.map((m) => Contact.fromMap(m));
@@ -170,13 +187,13 @@ enum FormOperationErrorCode {
 }
 
 class Group {
-  Group({this.name});
+  Group({this.name,this.identifier,this.group_account_name});
 
-  String identifier,
-      name;
+  String identifier,name,group_account_name;
   Group.fromMap(Map m) {
     identifier = m["identifier"];
     name = m["name"];
+    group_account_name = Platform.isAndroid ? m["group_account_name"]:'';
   }
 
   Map toMap() {
@@ -186,11 +203,13 @@ class Group {
   static Map _toMap(Group group) {
     return {
       'identifier': group.identifier,
-      'name': group.name
+      'name': group.name,
+      'group_account_name': Platform.isAndroid ? group.group_account_name :''
     };
   }
 
 }
+
 class Contact {
   Contact({
     this.selectedEmail,

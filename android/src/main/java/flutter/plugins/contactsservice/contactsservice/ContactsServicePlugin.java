@@ -55,7 +55,7 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
 
   private static final int FORM_OPERATION_CANCELED = 1;
   private static final int FORM_COULD_NOT_BE_OPEN = 2;
-
+  private Context mContext;
   private static final String LOG_TAG = "flutter_contacts";
   private ContentResolver contentResolver;
   private MethodChannel methodChannel;
@@ -75,6 +75,7 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
   }
 
   private void initInstance(BinaryMessenger messenger, Context context) {
+    this.mContext = context;
     methodChannel = new MethodChannel(messenger, "github.com/clovisnicolas/flutter_contacts");
     methodChannel.setMethodCallHandler(this);
     this.contentResolver = context.getContentResolver();
@@ -96,43 +97,57 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
 
   @Override
   public void onMethodCall(MethodCall call, Result result) {
-    switch(call.method){
+    switch (call.method) {
+      case "getGroups": {
+        this.getContactsGroup(call.method, (String) call.argument("query"), (boolean) call.argument("withThumbnails"), (boolean) call.argument("photoHighResolution"), (boolean) call.argument("orderByGivenName"), result);
+        break;
+      }
+      case "getContactsByGroup": {
+        this.getContactsByGroup(call.method, (String) call.argument("groupIdentifier"), (boolean) call.argument("withThumbnails"), (boolean) call.argument("photoHighResolution"), (boolean) call.argument("orderByGivenName"), result);
+        break;
+      }
       case "getContacts": {
-        this.getContacts(call.method, (String)call.argument("query"), (boolean)call.argument("withThumbnails"), (boolean)call.argument("photoHighResolution"), (boolean)call.argument("orderByGivenName"), result);
+        this.getContacts(call.method, (String) call.argument("query"), (boolean) call.argument("withThumbnails"), (boolean) call.argument("photoHighResolution"), (boolean) call.argument("orderByGivenName"), result);
         break;
-      } case "getContactsForPhone": {
-        this.getContactsForPhone(call.method, (String)call.argument("phone"), (boolean)call.argument("withThumbnails"), (boolean)call.argument("photoHighResolution"), (boolean)call.argument("orderByGivenName"), result);
+      }
+      case "getContactsForPhone": {
+        this.getContactsForPhone(call.method, (String) call.argument("phone"), (boolean) call.argument("withThumbnails"), (boolean) call.argument("photoHighResolution"), (boolean) call.argument("orderByGivenName"), result);
         break;
-      } case "getAvatar": {
-        final Contact contact = Contact.fromMap((HashMap)call.argument("contact"));
-        this.getAvatar(contact, (boolean)call.argument("photoHighResolution"), result);
+      }
+      case "getAvatar": {
+        final Contact contact = Contact.fromMap((HashMap) call.argument("contact"));
+        this.getAvatar(contact, (boolean) call.argument("photoHighResolution"), result);
         break;
-      } case "addContact": {
-        final Contact contact = Contact.fromMap((HashMap)call.arguments);
+      }
+      case "addContact": {
+        final Contact contact = Contact.fromMap((HashMap) call.arguments);
         if (this.addContact(contact)) {
           result.success(null);
         } else {
           result.error(null, "Failed to add the contact", null);
         }
         break;
-      } case "deleteContact": {
-        final Contact contact = Contact.fromMap((HashMap)call.arguments);
+      }
+      case "deleteContact": {
+        final Contact contact = Contact.fromMap((HashMap) call.arguments);
         if (this.deleteContact(contact)) {
           result.success(null);
         } else {
           result.error(null, "Failed to delete the contact, make sure it has a valid identifier", null);
         }
         break;
-      } case "updateContact": {
-        final Contact contact = Contact.fromMap((HashMap)call.arguments);
+      }
+      case "updateContact": {
+        final Contact contact = Contact.fromMap((HashMap) call.arguments);
         if (this.updateContact(contact)) {
           result.success(null);
         } else {
           result.error(null, "Failed to update the contact, make sure it has a valid identifier", null);
         }
         break;
-      } case "openExistingContact" :{
-        final Contact contact = Contact.fromMap((HashMap)call.argument("contact"));
+      }
+      case "openExistingContact": {
+        final Contact contact = Contact.fromMap((HashMap) call.argument("contact"));
         if (delegate != null) {
           delegate.setResult(result);
           delegate.openExistingContact(contact);
@@ -140,7 +155,8 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
           result.success(FORM_COULD_NOT_BE_OPEN);
         }
         break;
-      } case "openContactForm": {
+      }
+      case "openContactForm": {
         if (delegate != null) {
           delegate.setResult(result);
           delegate.openContactForm();
@@ -148,10 +164,12 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
           result.success(FORM_COULD_NOT_BE_OPEN);
         }
         break;
-      } case "openDeviceContactPicker": {
+      }
+      case "openDeviceContactPicker": {
         openDeviceContactPicker(result);
         break;
-      } default: {
+      }
+      default: {
         result.notImplemented();
         break;
       }
@@ -199,13 +217,21 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
     new GetContactsTask(callMethod, result, withThumbnails, photoHighResolution, orderByGivenName).executeOnExecutor(executor, query, false);
   }
 
+  private void getContactsGroup(String callMethod, String query, boolean withThumbnails, boolean photoHighResolution, boolean orderByGivenName, Result result) {
+    new GetContactsGroup(callMethod, result, withThumbnails, photoHighResolution, orderByGivenName).executeOnExecutor(executor, query, false);
+  }
+
+  private void getContactsByGroup(String callMethod, String query, boolean withThumbnails, boolean photoHighResolution, boolean orderByGivenName, Result result) {
+    new GetContactsTask(callMethod, result, withThumbnails, photoHighResolution, orderByGivenName).executeOnExecutor(executor, query, false);
+  }
+
   private void getContactsForPhone(String callMethod, String phone, boolean withThumbnails, boolean photoHighResolution, boolean orderByGivenName, Result result) {
     new GetContactsTask(callMethod, result, withThumbnails, photoHighResolution, orderByGivenName).executeOnExecutor(executor, phone, true);
   }
 
   @Override
   public void onAttachedToActivity(ActivityPluginBinding binding) {
-    if (delegate instanceof  ContactServiceDelegate) {
+    if (delegate instanceof ContactServiceDelegate) {
       ((ContactServiceDelegate) delegate).bindToActivity(binding);
     }
   }
@@ -219,7 +245,7 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
 
   @Override
   public void onReattachedToActivityForConfigChanges(ActivityPluginBinding binding) {
-    if (delegate instanceof  ContactServiceDelegate) {
+    if (delegate instanceof ContactServiceDelegate) {
       ((ContactServiceDelegate) delegate).bindToActivity(binding);
     }
   }
@@ -242,7 +268,7 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
     }
 
     void finishWithResult(Object result) {
-      if(this.result != null) {
+      if (this.result != null) {
         this.result.success(result);
         this.result = null;
       }
@@ -250,7 +276,7 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
 
     @Override
     public boolean onActivityResult(int requestCode, int resultCode, Intent intent) {
-      if(requestCode == REQUEST_OPEN_EXISTING_CONTACT || requestCode == REQUEST_OPEN_CONTACT_FORM) {
+      if (requestCode == REQUEST_OPEN_EXISTING_CONTACT || requestCode == REQUEST_OPEN_CONTACT_FORM) {
         try {
           Uri ur = intent.getData();
           finishWithResult(getContactByIdentifier(ur.getLastPathSegment()));
@@ -287,7 +313,7 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
       try {
         HashMap contactMapFromDevice = getContactByIdentifier(identifier);
         // Contact existence check
-        if(contactMapFromDevice != null) {
+        if (contactMapFromDevice != null) {
           Uri uri = Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_URI, identifier);
           Intent intent = new Intent(Intent.ACTION_EDIT);
           intent.setDataAndType(uri, ContactsContract.Contacts.CONTENT_ITEM_TYPE);
@@ -296,7 +322,7 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
         } else {
           finishWithResult(FORM_COULD_NOT_BE_OPEN);
         }
-      } catch(Exception e) {
+      } catch (Exception e) {
         finishWithResult(FORM_COULD_NOT_BE_OPEN);
       }
     }
@@ -306,14 +332,14 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
         Intent intent = new Intent(Intent.ACTION_INSERT, ContactsContract.Contacts.CONTENT_URI);
         intent.putExtra("finishActivityOnSaveCompleted", true);
         startIntent(intent, REQUEST_OPEN_CONTACT_FORM);
-      }catch(Exception e) {
+      } catch (Exception e) {
       }
     }
 
     void openContactPicker() {
-        Intent intent = new Intent(Intent.ACTION_PICK);
-        intent.setType(ContactsContract.Contacts.CONTENT_TYPE);
-        startIntent(intent, REQUEST_OPEN_CONTACT_PICKER);
+      Intent intent = new Intent(Intent.ACTION_PICK);
+      intent.setType(ContactsContract.Contacts.CONTENT_TYPE);
+      startIntent(intent, REQUEST_OPEN_CONTACT_PICKER);
     }
 
     void startIntent(Intent intent, int request) {
@@ -331,27 +357,27 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
         try {
           matchingContacts = getContactsFrom(cursor);
         } finally {
-          if(cursor != null) {
+          if (cursor != null) {
             cursor.close();
           }
         }
       }
-      if(matchingContacts.size() > 0) {
+      if (matchingContacts.size() > 0) {
         return matchingContacts.iterator().next().toMap();
       }
       return null;
     }
   }
-  
-    private void openDeviceContactPicker(Result result) {
-      if (delegate != null) {
-        delegate.setResult(result);
-        delegate.openContactPicker();
-      } else {
-        result.success(FORM_COULD_NOT_BE_OPEN);
-      }
+
+  private void openDeviceContactPicker(Result result) {
+    if (delegate != null) {
+      delegate.setResult(result);
+      delegate.openContactPicker();
+    } else {
+      result.success(FORM_COULD_NOT_BE_OPEN);
+    }
   }
-  
+
   private class ContactServiceDelegateOld extends BaseContactsServiceDelegate {
     private final PluginRegistry.Registrar registrar;
 
@@ -403,6 +429,45 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
   }
 
   @TargetApi(Build.VERSION_CODES.CUPCAKE)
+  private class GetContactsGroup extends AsyncTask<Object, Void, ArrayList<HashMap>> {
+
+    private String callMethod;
+    private Result getContactResult;
+    private boolean withThumbnails;
+    private boolean photoHighResolution;
+    private boolean orderByGivenName;
+
+    public GetContactsGroup(String callMethod, Result result, boolean withThumbnails, boolean photoHighResolution, boolean orderByGivenName) {
+      this.callMethod = callMethod;
+      this.getContactResult = result;
+      this.withThumbnails = withThumbnails;
+      this.photoHighResolution = photoHighResolution;
+      this.orderByGivenName = orderByGivenName;
+    }
+
+    @TargetApi(Build.VERSION_CODES.ECLAIR)
+    protected ArrayList<HashMap> doInBackground(Object... params) {
+      ArrayList<Group> groups = getGroups(getCursorForGroups());
+
+      //Transform the list of contacts to a list of Map
+      ArrayList<HashMap> contactMaps = new ArrayList<>();
+      for (Group c : groups) {
+        contactMaps.add(c.toMap());
+      }
+
+      return contactMaps;
+    }
+
+    protected void onPostExecute(ArrayList<HashMap> result) {
+      if (result == null) {
+        getContactResult.notImplemented();
+      } else {
+        getContactResult.success(result);
+      }
+    }
+  }
+
+  @TargetApi(Build.VERSION_CODES.CUPCAKE)
   private class GetContactsTask extends AsyncTask<Object, Void, ArrayList<HashMap>> {
 
     private String callMethod;
@@ -411,7 +476,7 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
     private boolean photoHighResolution;
     private boolean orderByGivenName;
 
-    public GetContactsTask(String callMethod, Result result, boolean withThumbnails, boolean photoHighResolution, boolean orderByGivenName){
+    public GetContactsTask(String callMethod, Result result, boolean withThumbnails, boolean photoHighResolution, boolean orderByGivenName) {
       this.callMethod = callMethod;
       this.getContactResult = result;
       this.withThumbnails = withThumbnails;
@@ -423,14 +488,24 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
     protected ArrayList<HashMap> doInBackground(Object... params) {
       ArrayList<Contact> contacts;
       switch (callMethod) {
-        case "openDeviceContactPicker": contacts = getContactsFrom(getCursor(null, (String) params[0])); break;
-        case "getContacts": contacts = getContactsFrom(getCursor((String) params[0], null)); break;
-        case "getContactsForPhone": contacts = getContactsFrom(getCursorForPhone(((String) params[0]))); break;
-        default: return null;
+        case "openDeviceContactPicker":
+          contacts = getContactsFrom(getCursor(null, (String) params[0]));
+          break;
+        case "getContacts":
+          contacts = getContactsFrom(getCursor((String) params[0], null));
+          break;
+        case "getContactsForPhone":
+          contacts = getContactsFrom(getCursorForPhone(((String) params[0])));
+          break;
+        case "getContactsByGroup":
+          contacts = getCursorByGroupID(getCursorForGroupID(((String) params[0])));
+          break;
+        default:
+          return null;
       }
 
       if (withThumbnails) {
-        for(Contact c : contacts){
+        for (Contact c : contacts) {
           final byte[] avatar = loadContactPhotoHighRes(
                   c.identifier, photoHighResolution, contentResolver);
           if (avatar != null) {
@@ -446,20 +521,19 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
         }
       }
 
-      if (orderByGivenName)
-      {
+      if (orderByGivenName) {
         Comparator<Contact> compareByGivenName = new Comparator<Contact>() {
           @Override
           public int compare(Contact contactA, Contact contactB) {
             return contactA.compareTo(contactB);
           }
         };
-        Collections.sort(contacts,compareByGivenName);
+        Collections.sort(contacts, compareByGivenName);
       }
 
       //Transform the list of contacts to a list of Map
       ArrayList<HashMap> contactMaps = new ArrayList<>();
-      for(Contact c : contacts){
+      for (Contact c : contacts) {
         contactMaps.add(c.toMap());
       }
 
@@ -496,6 +570,128 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
     return contentResolver.query(ContactsContract.Data.CONTENT_URI, PROJECTION, selection, selectionArgs.toArray(new String[selectionArgs.size()]), null);
   }
 
+  private Cursor getCursorForGroups() {
+    try {
+      final String[] GROUP_PROJECTION = new String[]{ContactsContract.Groups._ID, ContactsContract.Groups.TITLE,ContactsContract.Groups.ACCOUNT_NAME,ContactsContract.Groups.ACCOUNT_TYPE};
+      return contentResolver.query(ContactsContract.Groups.CONTENT_URI, GROUP_PROJECTION, null ,null,ContactsContract.Groups.TITLE);
+    } catch (java.lang.Exception exception) {
+      exception.printStackTrace();
+    }
+    return null;
+  }
+
+
+   /* private Cursor getCursorForGroups() {
+        try {
+
+
+            String selection = ContactsContract.RawContacts.ACCOUNT_TYPE + " IN ('vnd.sec.contact.phone', 'com.htc.android.pcsc', 'com.sonyericsson.localcontacts', 'com.lge.sync', 'com.android.huawei.phone', 'Local Phone Account','com.android.localphone','vnd.android.cursor.item')";
+            String[] projection = { ContactsContract.RawContacts.CONTACT_ID, ContactsContract.RawContacts.DISPLAY_NAME_PRIMARY };
+            return contentResolver.query(ContactsContract.Groups.CONTENT_URI, null, selection, null, null);
+
+        } catch (java.lang.Exception exception) {
+            exception.printStackTrace();
+        }
+        return null;
+    }*/
+
+
+  private Cursor getCursorForGroupID(String groupId)
+  {
+    String where = CommonDataKinds.GroupMembership.GROUP_ROW_ID + "=" + groupId ;
+    return contentResolver.query(ContactsContract.Data.CONTENT_URI, PROJECTION, where, null,ContactsContract.Data.DISPLAY_NAME + " COLLATE LOCALIZED ASC");
+  }
+
+  private ArrayList<Contact> getCursorByGroupID(Cursor cursor) {
+    try {
+      HashMap<Integer, Contact> map = new LinkedHashMap<>();
+      while (cursor.moveToNext()) {
+        Contact contact = new Contact(cursor.getString(cursor.getColumnIndex(ContactsContract.Data.CONTACT_ID)));
+        String mimeType = cursor.getString(cursor.getColumnIndex(ContactsContract.Data.MIMETYPE));
+        contact.displayName = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME));
+        contact.androidAccountType = cursor.getString(cursor.getColumnIndex(ContactsContract.RawContacts.ACCOUNT_TYPE));
+        contact.androidAccountName = cursor.getString(cursor.getColumnIndex(ContactsContract.RawContacts.ACCOUNT_NAME));
+
+        String [] names = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME)).split(" ");
+        if(names.length > 1){
+          contact.givenName = names[0];
+          contact.familyName = names[1];
+        }else if(names.length > 0){
+          contact.givenName = names[0];
+        }else{
+          contact.givenName = contact.displayName;
+        }
+
+        Cursor numberCursor = contentResolver.query(Phone.CONTENT_URI,new String[] { Phone.NUMBER, Phone.DISPLAY_NAME,Phone.DISPLAY_NAME_PRIMARY }, Phone.CONTACT_ID + "=" + cursor.getString(cursor.getColumnIndex(ContactsContract.Data.CONTACT_ID)), null, null);
+        while (numberCursor != null &&  numberCursor.moveToNext()){
+          String phoneNumber = numberCursor.getString(numberCursor.getColumnIndex(Phone.NUMBER));
+          if (!TextUtils.isEmpty(phoneNumber)) {
+//                        int type = numberCursor.getInt(numberCursor.getColumnIndex(Phone.TYPE));
+            String label = Item.getPhoneLabel(2, numberCursor);
+            contact.phones.add(new Item(label, phoneNumber));
+          }
+        }
+        numberCursor.close();
+
+
+        //NAMES
+        if (mimeType.equals(CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)) {
+          contact.givenName = cursor.getString(cursor.getColumnIndex(StructuredName.GIVEN_NAME));
+          contact.middleName = cursor.getString(cursor.getColumnIndex(StructuredName.MIDDLE_NAME));
+          contact.familyName = cursor.getString(cursor.getColumnIndex(StructuredName.FAMILY_NAME));
+          contact.prefix = cursor.getString(cursor.getColumnIndex(StructuredName.PREFIX));
+          contact.suffix = cursor.getString(cursor.getColumnIndex(StructuredName.SUFFIX));
+        }
+        // NOTE
+        else if (mimeType.equals(CommonDataKinds.Note.CONTENT_ITEM_TYPE)) {
+          contact.note = cursor.getString(cursor.getColumnIndex(CommonDataKinds.Note.NOTE));
+        }
+        //PHONES
+        else if (mimeType.equals(CommonDataKinds.Phone.CONTENT_ITEM_TYPE)) {
+          String phoneNumber = cursor.getString(cursor.getColumnIndex(Phone.NUMBER));
+          if (!TextUtils.isEmpty(phoneNumber)) {
+            int type = cursor.getInt(cursor.getColumnIndex(Phone.TYPE));
+            String label = Item.getPhoneLabel(type, cursor);
+            contact.phones.add(new Item(label, phoneNumber));
+          }
+        }
+        //MAILS
+        else if (mimeType.equals(CommonDataKinds.Email.CONTENT_ITEM_TYPE)) {
+          String email = cursor.getString(cursor.getColumnIndex(Email.ADDRESS));
+          int type = cursor.getInt(cursor.getColumnIndex(Email.TYPE));
+          if (!TextUtils.isEmpty(email)) {
+            contact.emails.add(new Item(Item.getEmailLabel(type, cursor), email));
+          }
+        }
+        //ORG
+        else if (mimeType.equals(CommonDataKinds.Organization.CONTENT_ITEM_TYPE)) {
+          contact.company = cursor.getString(cursor.getColumnIndex(Organization.COMPANY));
+          contact.jobTitle = cursor.getString(cursor.getColumnIndex(Organization.TITLE));
+        }
+        //ADDRESSES
+        else if (mimeType.equals(CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE)) {
+          contact.postalAddresses.add(new PostalAddress(cursor));
+        }
+        // BIRTHDAY
+        else if (mimeType.equals(CommonDataKinds.Event.CONTENT_ITEM_TYPE)) {
+          int eventType = cursor.getInt(cursor.getColumnIndex(CommonDataKinds.Event.TYPE));
+          if (eventType == CommonDataKinds.Event.TYPE_BIRTHDAY) {
+            contact.birthday = cursor.getString(cursor.getColumnIndex(CommonDataKinds.Event.START_DATE));
+          }
+        }
+        map.put(cursor.getInt(cursor.getColumnIndex(ContactsContract.Data.CONTACT_ID)), contact);
+
+      }
+      cursor.close();
+      return new ArrayList<>(map.values());
+
+
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return null;
+  }
+
   private Cursor getCursorForPhone(String phone) {
     if (phone.isEmpty())
       return null;
@@ -505,10 +701,10 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
 
     ArrayList<String> contactIds = new ArrayList<>();
     Cursor phoneCursor = contentResolver.query(uri, projection, null, null, null);
-    while (phoneCursor != null && phoneCursor.moveToNext()){
+    while (phoneCursor != null && phoneCursor.moveToNext()) {
       contactIds.add(phoneCursor.getString(phoneCursor.getColumnIndex(BaseColumns._ID)));
     }
-    if (phoneCursor!= null)
+    if (phoneCursor != null)
       phoneCursor.close();
 
     if (!contactIds.isEmpty()) {
@@ -522,21 +718,38 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
 
   /**
    * Builds the list of contacts from the cursor
+   *
    * @param cursor
    * @return the list of contacts
    */
+
+  private ArrayList<Group> getGroups(Cursor cursor) {
+    HashMap<String, Group> map = new LinkedHashMap<>();
+    while (cursor != null && cursor.moveToNext()) {
+      String id = cursor.getString(cursor.getColumnIndex(ContactsContract.Groups._ID));
+      String gTitle = cursor.getString(cursor.getColumnIndex(ContactsContract.Groups.TITLE));
+      if (!map.containsKey(id) && gTitle != null) {
+        map.put(id, new Group(id));
+        Group grp = map.get(id);
+        grp.name = gTitle;
+        grp.group_account_name = cursor.getString(cursor.getColumnIndex(ContactsContract.Groups.ACCOUNT_NAME));
+        map.put(id, grp);
+      }
+    }
+    if (cursor != null)
+      cursor.close();
+    return new ArrayList<>(map.values());
+  }
+
   private ArrayList<Contact> getContactsFrom(Cursor cursor) {
     HashMap<String, Contact> map = new LinkedHashMap<>();
-
     while (cursor != null && cursor.moveToNext()) {
       int columnIndex = cursor.getColumnIndex(ContactsContract.Data.CONTACT_ID);
       String contactId = cursor.getString(columnIndex);
-
       if (!map.containsKey(contactId)) {
         map.put(contactId, new Contact(contactId));
       }
       Contact contact = map.get(contactId);
-
       String mimeType = cursor.getString(cursor.getColumnIndex(ContactsContract.Data.MIMETYPE));
       contact.displayName = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME));
       contact.androidAccountType = cursor.getString(cursor.getColumnIndex(ContactsContract.RawContacts.ACCOUNT_TYPE));
@@ -555,12 +768,12 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
         contact.note = cursor.getString(cursor.getColumnIndex(CommonDataKinds.Note.NOTE));
       }
       //PHONES
-      else if (mimeType.equals(CommonDataKinds.Phone.CONTENT_ITEM_TYPE)){
+      else if (mimeType.equals(CommonDataKinds.Phone.CONTENT_ITEM_TYPE)) {
         String phoneNumber = cursor.getString(cursor.getColumnIndex(Phone.NUMBER));
-        if (!TextUtils.isEmpty(phoneNumber)){
+        if (!TextUtils.isEmpty(phoneNumber)) {
           int type = cursor.getInt(cursor.getColumnIndex(Phone.TYPE));
           String label = Item.getPhoneLabel(type, cursor);
-          contact.phones.add(new Item(label,phoneNumber));
+          contact.phones.add(new Item(label, phoneNumber));
         }
       }
       //MAILS
@@ -568,7 +781,7 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
         String email = cursor.getString(cursor.getColumnIndex(Email.ADDRESS));
         int type = cursor.getInt(cursor.getColumnIndex(Email.TYPE));
         if (!TextUtils.isEmpty(email)) {
-          contact.emails.add(new Item(Item.getEmailLabel(type, cursor),email));
+          contact.emails.add(new Item(Item.getEmailLabel(type, cursor), email));
         }
       }
       //ORG
@@ -589,7 +802,7 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
       }
     }
 
-    if(cursor != null)
+    if (cursor != null)
       cursor.close();
 
     return new ArrayList<>(map.values());
@@ -599,7 +812,7 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
     Uri contactUri = ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, Integer.parseInt(contact.identifier));
     Uri photoUri = Uri.withAppendedPath(contactUri, ContactsContract.Contacts.Photo.CONTENT_DIRECTORY);
     Cursor avatarCursor = contentResolver.query(photoUri,
-            new String[] {ContactsContract.Contacts.Photo.PHOTO}, null, null, null);
+            new String[]{ContactsContract.Contacts.Photo.PHOTO}, null, null, null);
     if (avatarCursor != null && avatarCursor.moveToFirst()) {
       byte[] avatar = avatarCursor.getBlob(0);
       contact.avatar = avatar;
@@ -656,13 +869,13 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
       final byte[] bytes = stream.toByteArray();
       stream.close();
       return bytes;
-    } catch (final IOException ex){
+    } catch (final IOException ex) {
       Log.e(LOG_TAG, ex.getMessage());
       return null;
     }
   }
 
-  private boolean addContact(Contact contact){
+  private boolean addContact(Contact contact) {
 
     ArrayList<ContentProviderOperation> ops = new ArrayList<>();
 
@@ -705,17 +918,17 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
     op.withYieldAllowed(true);
 
     //Phones
-    for(Item phone : contact.phones){
+    for (Item phone : contact.phones) {
       op = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
               .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
               .withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
               .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, phone.value);
 
-      if (Item.stringToPhoneType(phone.label) == ContactsContract.CommonDataKinds.Phone.TYPE_CUSTOM){
-        op.withValue( ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.BaseTypes.TYPE_CUSTOM );
+      if (Item.stringToPhoneType(phone.label) == ContactsContract.CommonDataKinds.Phone.TYPE_CUSTOM) {
+        op.withValue(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.BaseTypes.TYPE_CUSTOM);
         op.withValue(ContactsContract.CommonDataKinds.Phone.LABEL, phone.label);
       } else
-        op.withValue( ContactsContract.CommonDataKinds.Phone.TYPE, Item.stringToPhoneType(phone.label) );
+        op.withValue(ContactsContract.CommonDataKinds.Phone.TYPE, Item.stringToPhoneType(phone.label));
 
       ops.add(op.build());
     }
@@ -760,7 +973,7 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
     }
   }
 
-  private boolean deleteContact(Contact contact){
+  private boolean deleteContact(Contact contact) {
     ArrayList<ContentProviderOperation> ops = new ArrayList<>();
     ops.add(ContentProviderOperation.newDelete(ContactsContract.RawContacts.CONTENT_URI)
             .withSelection(ContactsContract.RawContacts.CONTACT_ID + "=?", new String[]{String.valueOf(contact.identifier)})
@@ -790,12 +1003,12 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
     ops.add(op.build());
 
     op = ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
-            .withSelection(ContactsContract.Data.CONTACT_ID +"=? AND " + ContactsContract.Data.MIMETYPE + "=?",
+            .withSelection(ContactsContract.Data.CONTACT_ID + "=? AND " + ContactsContract.Data.MIMETYPE + "=?",
                     new String[]{String.valueOf(contact.identifier), ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE});
     ops.add(op.build());
 
     op = ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
-            .withSelection(ContactsContract.Data.CONTACT_ID +"=? AND " + ContactsContract.Data.MIMETYPE + "=?",
+            .withSelection(ContactsContract.Data.CONTACT_ID + "=? AND " + ContactsContract.Data.MIMETYPE + "=?",
                     new String[]{String.valueOf(contact.identifier), ContactsContract.CommonDataKinds.Note.CONTENT_ITEM_TYPE});
     ops.add(op.build());
 
@@ -851,11 +1064,11 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
               .withValue(ContactsContract.Data.RAW_CONTACT_ID, contact.identifier)
               .withValue(Phone.NUMBER, phone.value);
 
-      if (Item.stringToPhoneType(phone.label) == ContactsContract.CommonDataKinds.Phone.TYPE_CUSTOM){
-        op.withValue( ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.BaseTypes.TYPE_CUSTOM );
+      if (Item.stringToPhoneType(phone.label) == ContactsContract.CommonDataKinds.Phone.TYPE_CUSTOM) {
+        op.withValue(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.BaseTypes.TYPE_CUSTOM);
         op.withValue(ContactsContract.CommonDataKinds.Phone.LABEL, phone.label);
       } else
-        op.withValue( ContactsContract.CommonDataKinds.Phone.TYPE, Item.stringToPhoneType(phone.label) );
+        op.withValue(ContactsContract.CommonDataKinds.Phone.TYPE, Item.stringToPhoneType(phone.label));
 
       ops.add(op.build());
     }
@@ -887,7 +1100,7 @@ public class ContactsServicePlugin implements MethodCallHandler, FlutterPlugin, 
       return true;
     } catch (Exception e) {
       // Log exception
-      Log.e("TAG", "Exception encountered while inserting contact: " );
+      Log.e("TAG", "Exception encountered while inserting contact: ");
       e.printStackTrace();
       return false;
     }
